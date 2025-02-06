@@ -22,6 +22,20 @@ struct Quake {
     properties: QuakeProperties,
 }
 
+impl Quake {
+    fn create_embed(&self) -> serenity::CreateEmbed {
+        let properties = &self.properties;
+        let embed = serenity::CreateEmbed::default()
+            .title(&properties.public_id)
+            .url(format!(
+                "https://www.geonet.org.nz/earthquake/{}",
+                properties.public_id
+            ));
+
+        return embed;
+    }
+}
+
 #[derive(Deserialize)]
 struct QuakeList {
     // r#type: String,
@@ -58,7 +72,8 @@ async fn quake(
     let mmi = minimum_mmi.unwrap_or(3);
     let quake = get_quake(mmi).await?;
 
-    ctx.say(quake.properties.public_id).await?;
+    let embed = quake.create_embed();
+    ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
 
@@ -73,7 +88,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
             if let Err(e) = ctx
                 .send(
                     poise::CreateReply::default().embed(
-                        serenity::CreateEmbed::new()
+                        serenity::CreateEmbed::default()
                             .colour(serenity::Colour::RED)
                             .title("Error")
                             .description(error.to_string()),
