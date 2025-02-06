@@ -36,7 +36,7 @@ impl Quake {
                 "https://www.geonet.org.nz/earthquake/{}",
                 properties.public_id
             ))
-            .title(&properties.public_id)
+            .title(format!("Quake ID {}", properties.public_id))
             .description(match mmi {
                 i8::MIN..=7 => format!("Most recent quake with MMI >= {}", mmi),
                 8..=i8::MAX => format!("Well, fuck. Most recent quake with MMI >= {}", mmi),
