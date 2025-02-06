@@ -20,3 +20,4 @@ target/
 .direnv/
 .env
 .envrc
+.vscode/
