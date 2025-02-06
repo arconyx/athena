@@ -29,6 +29,8 @@
               rustfmt
               pre-commit
               rustPackages.clippy
+              pkg-config
+              openssl
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
           };
