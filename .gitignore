@@ -21,3 +21,8 @@ target/
 .env
 .envrc
 .vscode/
+
+
+# Added by cargo
+
+/target
