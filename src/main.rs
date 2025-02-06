@@ -24,7 +24,7 @@ struct Quake {
 }
 
 impl Quake {
-    fn create_embed(&self) -> serenity::CreateEmbed {
+    fn create_embed(&self, mmi: i8) -> serenity::CreateEmbed {
         let properties = &self.properties;
         let timestamp = properties
             .time
@@ -37,6 +37,7 @@ impl Quake {
                 properties.public_id
             ))
             .title(&properties.public_id)
+            .description(format!("Most recent quake with MMI >= {}", mmi))
             .field("Magnitude", format!("{:.3}", properties.magnitude), true)
             .field("MMI", properties.mmi.to_string(), true)
             .field("Depth", format!("{:.3} km", properties.depth), true)
@@ -83,7 +84,7 @@ async fn quake(
     let mmi = minimum_mmi.unwrap_or(3);
     let quake = get_quake(mmi).await?;
 
-    let embed = quake.create_embed();
+    let embed = quake.create_embed(mmi);
     ctx.send(poise::CreateReply::default().embed(embed)).await?;
     Ok(())
 }
