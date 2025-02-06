@@ -6,12 +6,15 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 /// Displays your or another user's account creation date
 #[poise::command(slash_command)]
-async fn age(
+async fn quake(
     ctx: Context<'_>,
-    #[description = "Selected user"] user: Option<serenity::User>,
+    #[description = "Get the most recent quake with a minimum magnitude"]
+    #[min = 0]
+    #[max = 8]
+    minimum_mmi: Option<u8>,
 ) -> Result<(), Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let response = format!("{}'s account was created at {}", u.name, u.created_at());
+    let mmi = minimum_mmi.unwrap_or(3);
+    let response = format!("Minimum MMI is {}", mmi);
     ctx.say(response).await?;
     Ok(())
 }
@@ -23,7 +26,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![age()],
+            commands: vec![quake()],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
