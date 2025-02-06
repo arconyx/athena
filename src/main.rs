@@ -1,5 +1,5 @@
 use iso8601_timestamp::Timestamp;
-use poise::serenity_prelude::{self as serenity};
+use poise::serenity_prelude::{self as serenity, Colour};
 use serde::Deserialize;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
@@ -37,13 +37,27 @@ impl Quake {
                 properties.public_id
             ))
             .title(&properties.public_id)
-            .description(format!("Most recent quake with MMI >= {}", mmi))
+            .description(match mmi {
+                i8::MIN..=7 => format!("Most recent quake with MMI >= {}", mmi),
+                8..=i8::MAX => format!("Well, fuck. Most recent quake with MMI >= {}", mmi),
+            })
             .field("Magnitude", format!("{:.3}", properties.magnitude), true)
             .field("MMI", properties.mmi.to_string(), true)
             .field("Depth", format!("{:.3} km", properties.depth), true)
             .field("Time", format!("<t:{}:R>", timestamp), true)
             .field("Quality", format!("{}", properties.quality), true)
-            .field("Location", &properties.locality, true);
+            .field("Location", &properties.locality, true)
+            .color(match mmi {
+                i8::MIN..=0 => Colour::LIGHT_GREY,
+                1 => Colour::from_rgb(255, 255, 238),
+                2 => Colour::from_rgb(255, 236, 210),
+                3 => Colour::from_rgb(255, 207, 182),
+                4 => Colour::from_rgb(255, 179, 155),
+                5 => Colour::from_rgb(255, 151, 129),
+                6 => Colour::from_rgb(244, 124, 104),
+                7 => Colour::from_rgb(213, 98, 79),
+                8..=i8::MAX => Colour::from_rgb(153, 45, 34),
+            });
 
         return embed;
     }
@@ -68,7 +82,9 @@ async fn get_quake(mmi: i8) -> Result<Quake, Error> {
         .features;
 
     quakes.sort_by(|a, b| a.properties.time.cmp(&b.properties.time));
-    quakes.pop().ok_or("No quakes found".into())
+    quakes
+        .pop()
+        .ok_or("No quakes found with the required intensity".into())
 }
 
 /// Displays the most recent quake
