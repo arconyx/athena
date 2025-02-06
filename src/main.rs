@@ -1,3 +1,4 @@
+use iso8601_timestamp::Timestamp;
 use poise::serenity_prelude::{self as serenity};
 use serde::Deserialize;
 
@@ -5,11 +6,11 @@ struct Data {} // User data, which is stored and accessible in all command invoc
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct QuakeProperties {
     #[serde(rename = "publicID")]
     public_id: String,
-    time: String,
+    time: Timestamp,
     depth: f64,
     locality: String,
     magnitude: f64,
@@ -17,7 +18,7 @@ struct QuakeProperties {
     quality: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct Quake {
     properties: QuakeProperties,
 }
@@ -25,20 +26,30 @@ struct Quake {
 impl Quake {
     fn create_embed(&self) -> serenity::CreateEmbed {
         let properties = &self.properties;
+        let timestamp = properties
+            .time
+            .duration_since(Timestamp::UNIX_EPOCH)
+            .whole_seconds();
+
         let embed = serenity::CreateEmbed::default()
-            .title(&properties.public_id)
             .url(format!(
                 "https://www.geonet.org.nz/earthquake/{}",
                 properties.public_id
-            ));
+            ))
+            .title(&properties.public_id)
+            .field("Magnitude", format!("{:.3}", properties.magnitude), true)
+            .field("MMI", properties.mmi.to_string(), true)
+            .field("Depth", format!("{:.3} km", properties.depth), true)
+            .field("Time", format!("<t:{}:R>", timestamp), true)
+            .field("Quality", format!("{}", properties.quality), true)
+            .field("Location", &properties.locality, true);
 
         return embed;
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct QuakeList {
-    // r#type: String,
     features: Vec<Quake>,
 }
 
