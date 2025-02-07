@@ -9,3 +9,10 @@ poise = "0.6.1"
 reqwest = { version = "0.12.12", features = ["gzip", "json"] }
 serde = { version = "1.0.217", features = ["derive"] }
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
