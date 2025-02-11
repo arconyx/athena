@@ -7,6 +7,7 @@ edition = "2021"
 iso8601-timestamp = "0.3.3"
 poise = "0.6.1"
 reqwest = { version = "0.12.12", features = ["gzip", "json"] }
+rusqlite = { version = "0.33.0", features = ["bundled"] }
 serde = { version = "1.0.217", features = ["derive"] }
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 

@@ -1,5 +1,6 @@
 use iso8601_timestamp::Timestamp;
 use poise::serenity_prelude::{self as serenity, Colour};
+use rusqlite::Connection;
 use serde::Deserialize;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
@@ -105,6 +106,42 @@ async fn quake(
     Ok(())
 }
 
+async fn connect_to_database(folder: String) -> Result<Connection, Error> {
+    let database = format!("{}/athena-database.db3", folder);
+    let conn = Connection::open(database)?;
+
+    conn.pragma_update(None, "foreign_keys", true)?;
+    let num: u64 = 64;
+    num.ca
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        time INTEGER,
+        message TEXT,
+        sent BOOLEAN DEFAULT FALSE
+        ) STRICT;
+        ",
+        (),
+    )?;
+
+    Ok(conn)
+}
+
+/// Create a reminder about something
+#[poise::command(slash_command)]
+async fn remindme(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Please use a subcommand").await?;
+    Ok(())
+}
+
+#[poise::command(slash_command, rename = "in")]
+async fn remindin(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say("Test").await?;
+    Ok(())
+}
+
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
     // They are many errors that can occur, so we only handle the ones we want to customize
@@ -138,8 +175,10 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 #[tokio::main]
 async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
-    let intents = serenity::GatewayIntents::non_privileged();
+    let data_path = std::env::var("ATHENA_DATA_PATH").unwrap_or_default();
+    let conn = connect_to_database(data_path).await.unwrap();
 
+    let intents = serenity::GatewayIntents::non_privileged();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![quake()],
