@@ -15,7 +15,8 @@ in
     enable = lib.mkEnableOption "Athena";
     databaseUrl = lib.mkOption {
       type = lib.types.str;
-      default = "postgresql:///athena,host=/var/run/postgresql";
+      default = "postgresql:///athena?host=/var/run/postgresql";
+      description = "See https://docs.rs/tokio-postgres/latest/tokio_postgres/config/struct.Config.html for details on the connection string format";
     };
     discordToken = lib.mkOption {
       type = lib.types.str;
