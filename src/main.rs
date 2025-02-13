@@ -271,6 +271,19 @@ async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<
                         "Created At",
                         format!("<t:{}>", reminder.due_at.timestamp()),
                         false,
+                    )
+                    .field(
+                        "Scheduled For",
+                        format!("<t:{}:R>", reminder.due_at.timestamp()),
+                        false,
+                    )
+                    .field(
+                        "Delivery Accuracy",
+                        format!(
+                            "{} seconds late",
+                            (Utc::now() - reminder.due_at).num_seconds()
+                        ),
+                        false,
                     ),
             ),
         )
