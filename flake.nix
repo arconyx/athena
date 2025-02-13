@@ -10,9 +10,6 @@
       nixpkgs,
       flake-utils,
       naersk,
-      config,
-      lib,
-      self,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
