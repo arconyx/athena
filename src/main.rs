@@ -1,6 +1,10 @@
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use std::{ops::Rem, sync::Arc};
+
+use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeDelta, Utc};
 use iso8601_timestamp::Timestamp;
-use poise::serenity_prelude::{self as serenity, futures::future, Colour, UserId};
+use poise::serenity_prelude::{
+    self as serenity, futures::future, CacheHttp, Colour, CreateEmbed, CreateMessage, Http, UserId,
+};
 use serde::Deserialize;
 use tokio_postgres::{connect, types::Type, Client, NoTls, Statement};
 
@@ -114,6 +118,36 @@ struct ReminderDatabase {
     client: Client,
     add: Statement,
     remove: Statement,
+    select: Statement,
+}
+
+impl ReminderDatabase {
+    async fn add_reminder(
+        &self,
+        author: &UserId,
+        due_at: &DateTime<Utc>,
+        message: &String,
+    ) -> Result<(), Error> {
+        let author_id = author.get() as i64;
+
+        self.client
+            .execute(&self.add, &[&author_id, due_at, message])
+            .await?;
+
+        Ok(())
+    }
+
+    async fn remove_reminder(&self, reminder: Reminder) -> Result<(), Error> {
+        self.client.execute(&self.remove, &[&reminder.id]).await?;
+        Ok(())
+    }
+}
+
+struct Reminder {
+    id: i64,
+    user_id: UserId,
+    due_at: DateTime<Utc>,
+    message: String,
 }
 
 async fn connect_to_database(database: String) -> Result<ReminderDatabase, Error> {
@@ -132,19 +166,20 @@ async fn connect_to_database(database: String) -> Result<ReminderDatabase, Error
             "CREATE TABLE IF NOT EXISTS reminders (
                         id BIGSERIAL PRIMARY KEY,
                         user_id BIGINT,
-                        time TIMESTAMP,
+                        time TIMESTAMPTZ,
                         message TEXT
                     )",
             &[],
         )
         .await?;
 
-    let (add, remove) = future::try_join(
+    let (add, remove, select) = future::try_join3(
         client.prepare_typed(
             "INSERT INTO reminders (user_id, time, message) values ($1, $2, $3)",
-            &[Type::INT8, Type::TIMESTAMP, Type::TEXT],
+            &[Type::INT8, Type::TIMESTAMPTZ, Type::TEXT],
         ),
         client.prepare_typed("DELETE FROM reminders WHERE id = $1", &[Type::INT8]),
+        client.prepare("SELECT * FROM reminders"),
     )
     .await?;
 
@@ -152,6 +187,7 @@ async fn connect_to_database(database: String) -> Result<ReminderDatabase, Error
         client,
         add,
         remove,
+        select,
     };
 
     Ok(queries)
@@ -193,20 +229,65 @@ fn calculate_wait(
     start_time + wait_duration
 }
 
-async fn add_reminder(
-    database: &ReminderDatabase,
-    author: &UserId,
-    due_at: &NaiveDateTime,
-    message: &String,
-) -> Result<(), Error> {
-    let author_id = author.get() as i64;
+async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<(), Error> {
+    let user = bot.get_user(reminder.user_id).await?;
+    let dm_channel = user.create_dm_channel(bot.clone()).await?;
 
-    database
-        .client
-        .execute(&database.add, &[&author_id, due_at, message])
+    dm_channel
+        .send_message(
+            bot,
+            CreateMessage::default().add_embed(
+                CreateEmbed::default()
+                    .title("Reminder")
+                    .description(reminder.message.clone())
+                    .field(
+                        "Created",
+                        format!("<t:{}>", reminder.due_at.timestamp()),
+                        false,
+                    ),
+            ),
+        )
         .await?;
 
     Ok(())
+}
+
+async fn send_and_remove_reminder(
+    database: &ReminderDatabase,
+    bot: Arc<serenity::Http>,
+    reminder: Reminder,
+) {
+    match send_reminder(bot, &reminder).await {
+        Ok(_) => database.remove_reminder(reminder).await,
+        Err(e) => {
+            println!("Unable to send reminder: {}", e);
+            return;
+        }
+    };
+}
+
+async fn sleeping_reminder(
+    database: &ReminderDatabase,
+    bot: Arc<serenity::Http>,
+    reminder: Reminder,
+) {
+    let delta = reminder.due_at - Utc::now();
+
+    if delta <= TimeDelta::zero() {
+        send_and_remove_reminder(database, bot, reminder).await;
+        return;
+    }
+
+    let duration = match delta.to_std() {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Unable to calculate reminder instant: {}", e);
+            return;
+        }
+    };
+
+    tokio::time::sleep(duration).await;
+    send_and_remove_reminder(database, bot, reminder).await;
 }
 
 /// Create a reminder about something
@@ -233,7 +314,8 @@ async fn remindin(
     let start_time = ctx.created_at();
     let end_time = calculate_wait(start_time, duration, unit);
 
-    add_reminder(database, &author, &end_time.naive_utc(), &message).await?;
+    database.add_reminder(&author, &end_time, &message).await?;
+
     ctx.say(format!("Reminder created for <t:{}>", end_time.timestamp()))
         .await?;
     Ok(())
@@ -273,6 +355,9 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
 
+    let data_path = std::env::var("DATABASE_URL").unwrap_or_default();
+    let database = connect_to_database(data_path).await.unwrap();
+
     let intents = serenity::GatewayIntents::non_privileged();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -282,9 +367,6 @@ async fn main() {
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                let data_path = std::env::var("DATABASE_URL").unwrap_or_default();
-                let database = connect_to_database(data_path).await?;
-
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data { database })
             })
@@ -294,5 +376,6 @@ async fn main() {
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
+
     client.unwrap().start().await.unwrap();
 }
