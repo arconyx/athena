@@ -268,7 +268,7 @@ async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<
                     .title("Reminder")
                     .description(reminder.message.clone())
                     .field(
-                        "Created",
+                        "Created At",
                         format!("<t:{}>", reminder.due_at.timestamp()),
                         false,
                     ),
