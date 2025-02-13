@@ -1,16 +1,16 @@
-use std::{ops::Rem, sync::Arc};
+use std::sync::Arc;
 
-use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeDelta, Utc};
+use chrono::{DateTime, Duration, TimeDelta, Utc};
 use iso8601_timestamp::Timestamp;
 use poise::serenity_prelude::{
-    self as serenity, futures::future, CacheHttp, Colour, CreateEmbed, CreateMessage, Http, UserId,
+    self as serenity, futures::future, Colour, CreateEmbed, CreateMessage, UserId,
 };
 use serde::Deserialize;
-use tokio_postgres::{connect, types::Type, Client, NoTls, Statement};
+use tokio_postgres::{connect, types::Type, Client, NoTls, Row, Statement};
 
 // User data, which is stored and accessible in all command invocations
 struct Data {
-    database: ReminderDatabase,
+    database: Arc<ReminderDatabase>,
 }
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -120,29 +120,6 @@ struct ReminderDatabase {
     remove: Statement,
     select: Statement,
 }
-
-impl ReminderDatabase {
-    async fn add_reminder(
-        &self,
-        author: &UserId,
-        due_at: &DateTime<Utc>,
-        message: &String,
-    ) -> Result<(), Error> {
-        let author_id = author.get() as i64;
-
-        self.client
-            .execute(&self.add, &[&author_id, due_at, message])
-            .await?;
-
-        Ok(())
-    }
-
-    async fn remove_reminder(&self, reminder: Reminder) -> Result<(), Error> {
-        self.client.execute(&self.remove, &[&reminder.id]).await?;
-        Ok(())
-    }
-}
-
 struct Reminder {
     id: i64,
     user_id: UserId,
@@ -150,47 +127,97 @@ struct Reminder {
     message: String,
 }
 
-async fn connect_to_database(database: String) -> Result<ReminderDatabase, Error> {
-    let (client, connection) = connect(&database, NoTls).await?;
-
-    // The connection object performs the actual communication with the database,
-    // so spawn it off to run on its own.
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
+impl Reminder {
+    fn from_row(x: Row) -> Self {
+        let id: i64 = x.get(0);
+        let user_id_int: i64 = x.get(1);
+        let user_id = UserId::from(user_id_int as u64);
+        let due_at: DateTime<Utc> = x.get(2);
+        let message: String = x.get(3);
+        Reminder {
+            id,
+            user_id,
+            due_at,
+            message,
         }
-    });
+    }
+}
 
-    client
-        .execute(
-            "CREATE TABLE IF NOT EXISTS reminders (
-                        id BIGSERIAL PRIMARY KEY,
-                        user_id BIGINT,
-                        time TIMESTAMPTZ,
-                        message TEXT
-                    )",
-            &[],
+impl ReminderDatabase {
+    async fn connect(database: String) -> Result<Self, Error> {
+        let (client, connection) = connect(&database, NoTls).await?;
+
+        // The connection object performs the actual communication with the database,
+        // so spawn it off to run on its own.
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
+        client
+            .execute(
+                "CREATE TABLE IF NOT EXISTS reminders (
+                            id BIGSERIAL PRIMARY KEY,
+                            user_id BIGINT,
+                            due_at TIMESTAMPTZ,
+                            message TEXT
+                        )",
+                &[],
+            )
+            .await?;
+
+        let (add, remove, select) = future::try_join3(
+            client.prepare_typed(
+                "INSERT INTO reminders (user_id, due_at, message) values ($1, $2, $3) RETURNING id",
+                &[Type::INT8, Type::TIMESTAMPTZ, Type::TEXT],
+            ),
+            client.prepare_typed("DELETE FROM reminders WHERE id = $1", &[Type::INT8]),
+            client.prepare("SELECT id, user_id, due_at, message FROM reminders"),
         )
         .await?;
 
-    let (add, remove, select) = future::try_join3(
-        client.prepare_typed(
-            "INSERT INTO reminders (user_id, time, message) values ($1, $2, $3)",
-            &[Type::INT8, Type::TIMESTAMPTZ, Type::TEXT],
-        ),
-        client.prepare_typed("DELETE FROM reminders WHERE id = $1", &[Type::INT8]),
-        client.prepare("SELECT * FROM reminders"),
-    )
-    .await?;
+        let queries = ReminderDatabase {
+            client,
+            add,
+            remove,
+            select,
+        };
 
-    let queries = ReminderDatabase {
-        client,
-        add,
-        remove,
-        select,
-    };
+        Ok(queries)
+    }
 
-    Ok(queries)
+    async fn add_reminder(
+        &self,
+        user_id: UserId,
+        due_at: DateTime<Utc>,
+        message: String,
+    ) -> Result<Reminder, Error> {
+        let author_id = user_id.get() as i64;
+
+        let id: i64 = self
+            .client
+            .query_one(&self.add, &[&author_id, &due_at, &message])
+            .await?
+            .get(0);
+
+        Ok(Reminder {
+            id,
+            user_id,
+            due_at,
+            message,
+        })
+    }
+
+    async fn remove_reminder(&self, reminder: Reminder) -> Result<(), Error> {
+        self.client.execute(&self.remove, &[&reminder.id]).await?;
+        Ok(())
+    }
+
+    async fn get_reminders(&self) -> Result<Vec<Row>, Error> {
+        let rows = self.client.query(&self.select, &[]).await?;
+        Ok(rows)
+    }
 }
 
 #[derive(Debug, poise::ChoiceParameter)]
@@ -253,21 +280,21 @@ async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<
 }
 
 async fn send_and_remove_reminder(
-    database: &ReminderDatabase,
+    database: Arc<ReminderDatabase>,
     bot: Arc<serenity::Http>,
     reminder: Reminder,
 ) {
-    match send_reminder(bot, &reminder).await {
-        Ok(_) => database.remove_reminder(reminder).await,
-        Err(e) => {
-            println!("Unable to send reminder: {}", e);
-            return;
-        }
-    };
+    if let Err(e) = send_reminder(bot, &reminder).await {
+        println!("Unable to send reminder: {:?}", e);
+        return;
+    }
+    if let Err(e) = database.remove_reminder(reminder).await {
+        println!("Unable to remove reminder: {:?}", e);
+    }
 }
 
 async fn sleeping_reminder(
-    database: &ReminderDatabase,
+    database: Arc<ReminderDatabase>,
     bot: Arc<serenity::Http>,
     reminder: Reminder,
 ) {
@@ -290,6 +317,18 @@ async fn sleeping_reminder(
     send_and_remove_reminder(database, bot, reminder).await;
 }
 
+async fn spawn_reminder_tasks(database: Arc<ReminderDatabase>, bot: Arc<serenity::Http>) {
+    let Ok(rows) = database.get_reminders().await else {
+        println!("Unable to get reminders");
+        return;
+    };
+
+    for ele in rows {
+        let reminder = Reminder::from_row(ele);
+        tokio::spawn(sleeping_reminder(database.clone(), bot.clone(), reminder));
+    }
+}
+
 /// Create a reminder about something
 #[poise::command(slash_command, subcommands("remindin"))]
 async fn remindme(ctx: Context<'_>) -> Result<(), Error> {
@@ -309,12 +348,18 @@ async fn remindin(
 ) -> Result<(), Error> {
     ctx.defer_ephemeral().await?;
 
-    let database = &ctx.data().database;
+    let database = ctx.data().database.clone();
     let author = ctx.author().id;
     let start_time = ctx.created_at();
     let end_time = calculate_wait(start_time, duration, unit);
 
-    database.add_reminder(&author, &end_time, &message).await?;
+    let reminder = database.add_reminder(author, end_time, message).await?;
+
+    tokio::spawn(sleeping_reminder(
+        database,
+        ctx.serenity_context().http.clone(),
+        reminder,
+    ));
 
     ctx.say(format!("Reminder created for <t:{}>", end_time.timestamp()))
         .await?;
@@ -356,7 +401,8 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
 
     let data_path = std::env::var("DATABASE_URL").unwrap_or_default();
-    let database = connect_to_database(data_path).await.unwrap();
+    let database = Arc::new(ReminderDatabase::connect(data_path).await.unwrap());
+    let db = database.clone();
 
     let intents = serenity::GatewayIntents::non_privileged();
     let framework = poise::Framework::builder()
@@ -368,14 +414,17 @@ async fn main() {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data { database })
+                Ok(Data { database: db })
             })
         })
         .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    let mut client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
-        .await;
+        .await
+        .unwrap();
 
-    client.unwrap().start().await.unwrap();
+    spawn_reminder_tasks(database.clone(), client.http.clone()).await;
+
+    client.start().await.unwrap();
 }
