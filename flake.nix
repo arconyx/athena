@@ -11,7 +11,7 @@
       flake-utils,
       naersk,
       ...
-    }:
+    }@inputs:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
@@ -71,6 +71,6 @@
       }
     )
     // {
-      nixosModules.default = import ./module.nix;
+      nixosModules.default = import ./module.nix inputs;
     };
 }
