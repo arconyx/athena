@@ -2,17 +2,20 @@
   inputs = {
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    utils.url = "github:numtide/flake-utils";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
       nixpkgs,
-      utils,
+      flake-utils,
       naersk,
+      config,
+      lib,
+      self,
       ...
     }:
-    utils.lib.eachDefaultSystem (
+    flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -69,5 +72,8 @@
             '';
           };
       }
-    );
+    )
+    // {
+      nixosModules.default = import ./module.nix;
+    };
 }
