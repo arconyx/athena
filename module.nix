@@ -3,13 +3,12 @@ inputs:
   pkgs,
   lib,
   config,
-  self,
   ...
 }:
 
 let
   cfg = config.services.athena;
-  athena-pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  athena-pkg = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   options.services.athena = {
