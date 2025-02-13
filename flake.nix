@@ -19,8 +19,8 @@
         naersk-lib = pkgs.callPackage naersk { };
       in
       {
-        defaultPackage = naersk-lib.buildPackage ./.;
-        devShell =
+        packages.default = naersk-lib.buildPackage ./.;
+        devShells.default =
           with pkgs;
           mkShell {
             buildInputs = [
