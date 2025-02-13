@@ -223,17 +223,17 @@ impl ReminderDatabase {
 #[derive(Debug, poise::ChoiceParameter)]
 enum TimeUnitChoice {
     #[name = "seconds"]
-    SECONDS,
+    Seconds,
     #[name = "minutes"]
-    MINUTES,
+    Minutes,
     #[name = "hours"]
-    HOURS,
+    Hours,
     #[name = "days"]
-    DAYS,
+    Days,
     #[name = "weeks"]
-    WEEKS,
+    Weeks,
     #[name = "months"]
-    MONTHS,
+    Months,
 }
 
 fn calculate_wait(
@@ -244,12 +244,12 @@ fn calculate_wait(
     let start_time = start.to_utc();
 
     let wait_duration = match unit {
-        TimeUnitChoice::SECONDS => Duration::seconds(duration),
-        TimeUnitChoice::MINUTES => Duration::minutes(duration),
-        TimeUnitChoice::HOURS => Duration::hours(duration),
-        TimeUnitChoice::DAYS => Duration::days(duration),
-        TimeUnitChoice::WEEKS => Duration::weeks(duration),
-        TimeUnitChoice::MONTHS => Duration::days(28 * duration),
+        TimeUnitChoice::Seconds => Duration::seconds(duration),
+        TimeUnitChoice::Minutes => Duration::minutes(duration),
+        TimeUnitChoice::Hours => Duration::hours(duration),
+        TimeUnitChoice::Days => Duration::days(duration),
+        TimeUnitChoice::Weeks => Duration::weeks(duration),
+        TimeUnitChoice::Months => Duration::days(28 * duration),
     };
 
     // Add the wait duration to the start time
