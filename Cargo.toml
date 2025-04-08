@@ -9,7 +9,7 @@ iso8601-timestamp = "0.3.3"
 poise = "0.6.1"
 reqwest = { version = "0.12.12", features = ["gzip", "json"] }
 serde = { version = "1.0.217", features = ["derive"] }
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.43.1", features = ["macros", "rt-multi-thread"] }
 tokio-postgres = { version = "0.7.13", features = ["with-chrono-0_4", "with-time-0_3"] }
 
 [profile.release]
