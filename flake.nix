@@ -24,6 +24,7 @@
           with pkgs;
           mkShell {
             buildInputs = [
+              bashInteractive
               cargo
               rustc
               rustfmt

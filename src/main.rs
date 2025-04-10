@@ -7,6 +7,7 @@ use poise::serenity_prelude::{
 };
 use serde::Deserialize;
 use tokio_postgres::{connect, types::Type, Client, NoTls, Row, Statement};
+use tyche::{dice::roller::FastRand, Expr};
 
 // User data, which is stored and accessible in all command invocations
 struct Data {
@@ -374,6 +375,21 @@ async fn remindin(
     Ok(())
 }
 
+#[poise::command(slash_command)]
+async fn roll(
+    ctx: Context<'_>,
+    #[description = "Dice string"] message: String,
+) -> Result<(), Error> {
+    ctx.defer().await?;
+    let expr: Expr = message.parse()?;
+    let mut roller = FastRand::default();
+    let roll = expr.eval(&mut roller)?;
+    let description = roll.to_string();
+    let total = roll.calc()?;
+    ctx.say(format!("{} = {}", total, description)).await?;
+    Ok(())
+}
+
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
     // They are many errors that can occur, so we only handle the ones we want to customize
@@ -415,7 +431,7 @@ async fn main() {
     let intents = serenity::GatewayIntents::non_privileged();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![quake(), remindme()],
+            commands: vec![quake(), remindme(), roll()],
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })
