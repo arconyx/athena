@@ -355,7 +355,7 @@ async fn remindin(
     #[description = "Time units"] unit: TimeUnitChoice,
     #[description = "Reminder message"] message: String,
 ) -> Result<(), Error> {
-    ctx.defer_ephemeral().await?;
+    ctx.defer().await?;
 
     let database = ctx.data().database.clone();
     let author = ctx.author().id;
