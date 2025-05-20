@@ -72,6 +72,6 @@
       }
     )
     // {
-      nixosModules.default = import ./module.nix inputs;
+      nixosModules.default = import ./nix/module.nix inputs;
     };
 }
