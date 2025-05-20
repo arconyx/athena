@@ -22,10 +22,15 @@ struct Reminder {
 }
 
 impl Reminder {
-    fn from_row(x: Row) -> Self {
+    fn from_row(x: &Row) -> Self {
         let id: i64 = x.get(0);
         let user_id_int: i64 = x.get(1);
+
+        // User ids are u64 but postgres doesn't support that so we store them as i64
+        // Undo this before it gets to the user
+        #[allow(clippy::cast_sign_loss)]
         let user_id = UserId::from(user_id_int as u64);
+
         let due_at: DateTime<Utc> = x.get(2);
         let message: String = x.get(3);
         Reminder {
@@ -87,6 +92,8 @@ impl ReminderDatabase {
         due_at: DateTime<Utc>,
         message: String,
     ) -> Result<Reminder, Error> {
+        // Postgres doesn't have an unsigned int 64 so we cast it to an i64
+        #[allow(clippy::cast_possible_wrap)]
         let author_id = user_id.get() as i64;
 
         let id: i64 = self
@@ -133,7 +140,7 @@ enum TimeUnitChoice {
 fn calculate_wait(
     start: serenity::Timestamp,
     duration: i64,
-    unit: TimeUnitChoice,
+    unit: &TimeUnitChoice,
 ) -> DateTime<Utc> {
     let start_time = start.to_utc();
 
@@ -229,7 +236,7 @@ pub(crate) async fn spawn_reminder_tasks(
     };
 
     for ele in rows {
-        let reminder = Reminder::from_row(ele);
+        let reminder = Reminder::from_row(&ele);
         tokio::spawn(sleeping_reminder(database.clone(), bot.clone(), reminder));
     }
 }
@@ -256,7 +263,7 @@ pub(crate) async fn remindin(
     let database = ctx.data().database.clone();
     let author = ctx.author().id;
     let start_time = ctx.created_at();
-    let end_time = calculate_wait(start_time, duration, unit);
+    let end_time = calculate_wait(start_time, duration, &unit);
 
     let reminder = database.add_reminder(author, end_time, message).await?;
 
