@@ -10,7 +10,10 @@ poise = "0.6.1"
 reqwest = { version = "0.12.12", features = ["gzip", "json"] }
 serde = { version = "1.0.217", features = ["derive"] }
 tokio = { version = "1.43.1", features = ["macros", "rt-multi-thread"] }
-tokio-postgres = { version = "0.7.13", features = ["with-chrono-0_4", "with-time-0_3"] }
+tokio-postgres = { version = "0.7.13", features = [
+    "with-chrono-0_4",
+    "with-time-0_3",
+] }
 tyche = "0.3.1"
 
 [profile.release]
@@ -19,3 +22,6 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[lints.clippy]
+pedantic = "warn"
