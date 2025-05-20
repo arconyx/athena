@@ -3,46 +3,18 @@ use crate::quake::quake;
 use poise::serenity_prelude::{self as serenity};
 use std::sync::Arc;
 
-// User data, which is stored and accessible in all command invocations
-struct Data {
-    database: Arc<reminders::ReminderDatabase>,
-}
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Data, Error>;
-
 mod dice;
 mod quake;
 mod reminders;
 
-async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
-    // This is our custom error handler
-    // They are many errors that can occur, so we only handle the ones we want to customize
-    // and forward the rest to the default handler
-    match error {
-        poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {error:?}"),
-        poise::FrameworkError::Command { error, ctx, .. } => {
-            println!("Error in command `{}`: {:?}", ctx.command().name, error,);
-            if let Err(e) = ctx
-                .send(
-                    poise::CreateReply::default().embed(
-                        serenity::CreateEmbed::default()
-                            .colour(serenity::Colour::RED)
-                            .title("Error")
-                            .description(error.to_string()),
-                    ),
-                )
-                .await
-            {
-                println!("Error while reporting error: {e}");
-            }
-        }
-        error => {
-            if let Err(e) = poise::builtins::on_error(error).await {
-                println!("Error while handling error: {e}");
-            }
-        }
-    }
+/// User data, which is stored and accessible in all command invocations
+struct Data {
+    database: Arc<reminders::ReminderDatabase>,
 }
+
+type Context<'a> = poise::Context<'a, Data, errors::Error>;
+
+mod errors;
 
 #[tokio::main]
 async fn main() {
@@ -60,7 +32,7 @@ async fn main() {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![quake(), reminders::remindme(), roll()],
-            on_error: |error| Box::pin(on_error(error)),
+            on_error: |error| Box::pin(errors::on_error(error)),
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {

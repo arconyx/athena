@@ -1,5 +1,5 @@
+use super::errors::Error;
 use super::Context;
-use super::Error;
 use crate::serenity;
 use iso8601_timestamp::Timestamp;
 use poise::serenity_prelude::Colour;
