@@ -3,6 +3,10 @@
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    pre-commit-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -10,6 +14,7 @@
       nixpkgs,
       flake-utils,
       naersk,
+      pre-commit-hooks,
       ...
     }@inputs:
     flake-utils.lib.eachDefaultSystem (
@@ -42,6 +47,14 @@
             PGHOST = "${pg_path}/sockets";
             shellHook = "echo To start a dev database use './start-postgres.sh'";
           };
+        checks.pre-commit-check = pre-commit-hooks.lib.${system}.run {
+          src = ./.;
+          hooks = {
+            nixfmt-rfc-style.enable = true;
+            clippy.enable = true;
+            rustfmt.enable = true;
+          };
+        };
       }
     )
     // {
