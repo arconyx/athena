@@ -29,7 +29,7 @@ But if you're going to be doing that more than once you'll probably just
 want to enable those features in your [nix config](https://nix.dev/manual/nix/2.24/command-ref/conf-file).
 
 ### Setup without Nix
-Install Rust and Cargo however you like. Remember to install PostgreSQL too, if you want to be able to run the bot locally. At time of writing the Nix flake uses v1.82 of rust and cargo. Postgres is at v16.8. Other recent versions should also work fine.
+Install Rust and Cargo however you like. Remember to install PostgreSQL too, if you want to be able to run the bot locally. At time of writing the Nix flake uses v1.86 of rust and cargo. Postgres is at v17.5. Other recent versions should also work fine.
 
 ### Building
 ```sh
