@@ -18,7 +18,9 @@ pub(crate) async fn on_error(error: FrameworkError<'_, Data, Error>) {
 
 /// Send an error message to Discord in response to a com,amd
 async fn send_error_message(ctx: Context<'_>, error: Error) {
+    // log the error locally first
     println!("Error in command `{}`: {:?}", ctx.command().name, error,);
+    // then try to tell the user about it
     if let Err(e) = ctx
         .send(
             poise::CreateReply::default().embed(
@@ -30,6 +32,9 @@ async fn send_error_message(ctx: Context<'_>, error: Error) {
         )
         .await
     {
+        // if we've gotten here something has gone wrong telling the user
+        // log that too so the admin might notice one day
+        // (probably not though)
         println!("Error while reporting error: {e}");
     }
 }
