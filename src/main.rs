@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
+use crate::dice::roll;
 use crate::quake::quake;
 use poise::serenity_prelude::{self as serenity};
-
-use tyche::{dice::roller::FastRand, Expr};
+use std::sync::Arc;
 
 // User data, which is stored and accessible in all command invocations
 struct Data {
@@ -12,23 +10,9 @@ struct Data {
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
+mod dice;
 mod quake;
 mod reminders;
-
-#[poise::command(slash_command)]
-async fn roll(
-    ctx: Context<'_>,
-    #[description = "Dice string"] message: String,
-) -> Result<(), Error> {
-    ctx.defer().await?;
-    let expr: Expr = message.parse()?;
-    let mut roller = FastRand::default();
-    let roll = expr.eval(&mut roller)?;
-    let description = roll.to_string();
-    let total = roll.calc()?;
-    ctx.say(format!("{} = {}", total, description)).await?;
-    Ok(())
-}
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     // This is our custom error handler
