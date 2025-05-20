@@ -1,14 +1,11 @@
 use super::Context;
+use super::Error;
 use crate::serenity;
 use chrono::{DateTime, Duration, TimeDelta, Utc};
+use poise::serenity_prelude::UserId;
 use poise::serenity_prelude::{futures::future, CreateEmbed, CreateMessage};
 use std::sync::Arc;
-
 use tokio_postgres::{connect, types::Type, Client, NoTls, Row, Statement};
-
-use super::Error;
-
-use poise::serenity_prelude::UserId;
 
 pub(crate) struct ReminderDatabase {
     pub(crate) client: Client,
@@ -17,7 +14,7 @@ pub(crate) struct ReminderDatabase {
     pub(crate) select: Statement,
 }
 
-pub(crate) struct Reminder {
+struct Reminder {
     pub(crate) id: i64,
     pub(crate) user_id: UserId,
     pub(crate) due_at: DateTime<Utc>,
@@ -25,7 +22,7 @@ pub(crate) struct Reminder {
 }
 
 impl Reminder {
-    pub(crate) fn from_row(x: Row) -> Self {
+    fn from_row(x: Row) -> Self {
         let id: i64 = x.get(0);
         let user_id_int: i64 = x.get(1);
         let user_id = UserId::from(user_id_int as u64);
@@ -84,7 +81,7 @@ impl ReminderDatabase {
         Ok(queries)
     }
 
-    pub(crate) async fn add_reminder(
+    async fn add_reminder(
         &self,
         user_id: UserId,
         due_at: DateTime<Utc>,
@@ -106,19 +103,19 @@ impl ReminderDatabase {
         })
     }
 
-    pub(crate) async fn remove_reminder(&self, reminder: Reminder) -> Result<(), Error> {
+    async fn remove_reminder(&self, reminder: Reminder) -> Result<(), Error> {
         self.client.execute(&self.remove, &[&reminder.id]).await?;
         Ok(())
     }
 
-    pub(crate) async fn get_reminders(&self) -> Result<Vec<Row>, Error> {
+    async fn get_reminders(&self) -> Result<Vec<Row>, Error> {
         let rows = self.client.query(&self.select, &[]).await?;
         Ok(rows)
     }
 }
 
 #[derive(Debug, poise::ChoiceParameter)]
-pub(crate) enum TimeUnitChoice {
+enum TimeUnitChoice {
     #[name = "seconds"]
     Seconds,
     #[name = "minutes"]
@@ -133,7 +130,7 @@ pub(crate) enum TimeUnitChoice {
     Months,
 }
 
-pub(crate) fn calculate_wait(
+fn calculate_wait(
     start: serenity::Timestamp,
     duration: i64,
     unit: TimeUnitChoice,
@@ -153,10 +150,7 @@ pub(crate) fn calculate_wait(
     start_time + wait_duration
 }
 
-pub(crate) async fn send_reminder(
-    bot: Arc<serenity::Http>,
-    reminder: &Reminder,
-) -> Result<(), Error> {
+async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<(), Error> {
     let user = bot.get_user(reminder.user_id).await?;
     let dm_channel = user.create_dm_channel(bot.clone()).await?;
 
@@ -187,7 +181,7 @@ pub(crate) async fn send_reminder(
     Ok(())
 }
 
-pub(crate) async fn send_and_remove_reminder(
+async fn send_and_remove_reminder(
     database: Arc<ReminderDatabase>,
     bot: Arc<serenity::Http>,
     reminder: Reminder,
@@ -201,7 +195,7 @@ pub(crate) async fn send_and_remove_reminder(
     }
 }
 
-pub(crate) async fn sleeping_reminder(
+async fn sleeping_reminder(
     database: Arc<ReminderDatabase>,
     bot: Arc<serenity::Http>,
     reminder: Reminder,

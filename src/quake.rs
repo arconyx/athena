@@ -6,7 +6,7 @@ use poise::serenity_prelude::Colour;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct QuakeProperties {
+struct QuakeProperties {
     #[serde(rename = "publicID")]
     pub(crate) public_id: String,
     pub(crate) time: Timestamp,
@@ -18,12 +18,12 @@ pub(crate) struct QuakeProperties {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct Quake {
+struct Quake {
     pub(crate) properties: QuakeProperties,
 }
 
 impl Quake {
-    pub(crate) fn create_embed(&self, mmi: i8) -> serenity::CreateEmbed {
+    fn create_embed(&self, mmi: i8) -> serenity::CreateEmbed {
         let properties = &self.properties;
         let timestamp = properties
             .time
@@ -61,11 +61,11 @@ impl Quake {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct QuakeList {
+struct QuakeList {
     pub(crate) features: Vec<Quake>,
 }
 
-pub(crate) async fn get_quake(mmi: i8) -> Result<Quake, Error> {
+async fn get_quake(mmi: i8) -> Result<Quake, Error> {
     let url = format!("https://api.geonet.org.nz//quake?MMI={}", mmi);
     let client = reqwest::Client::new();
 
