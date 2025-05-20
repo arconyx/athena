@@ -37,13 +37,13 @@ impl Quake {
             ))
             .title(format!("Quake ID {}", properties.public_id))
             .description(match mmi {
-                i8::MIN..=7 => format!("Most recent quake with MMI >= {}", mmi),
-                8..=i8::MAX => format!("Well, fuck. Most recent quake with MMI >= {}", mmi),
+                i8::MIN..=7 => format!("Most recent quake with MMI >= {mmi}"),
+                8..=i8::MAX => format!("Well, fuck. Most recent quake with MMI >= {mmi}"),
             })
             .field("Magnitude", format!("{:.3}", properties.magnitude), true)
             .field("MMI", properties.mmi.to_string(), true)
             .field("Depth", format!("{:.3} km", properties.depth), true)
-            .field("Time", format!("<t:{}:R>", timestamp), true)
+            .field("Time", format!("<t:{timestamp}:R>"), true)
             .field("Quality", properties.quality.to_string(), true)
             .field("Location", &properties.locality, true)
             .color(match mmi {
@@ -66,7 +66,7 @@ struct QuakeList {
 }
 
 async fn get_quake(mmi: i8) -> Result<Quake, Error> {
-    let url = format!("https://api.geonet.org.nz//quake?MMI={}", mmi);
+    let url = format!("https://api.geonet.org.nz//quake?MMI={mmi}");
     let client = reqwest::Client::new();
 
     let mut quakes = client

@@ -45,7 +45,7 @@ impl ReminderDatabase {
         // so spawn it off to run on its own.
         tokio::spawn(async move {
             if let Err(e) = connection.await {
-                eprintln!("connection error: {}", e);
+                eprintln!("connection error: {e}");
             }
         });
 
@@ -187,11 +187,11 @@ async fn send_and_remove_reminder(
     reminder: Reminder,
 ) {
     if let Err(e) = send_reminder(bot, &reminder).await {
-        println!("Unable to send reminder: {:?}", e);
+        println!("Unable to send reminder: {e:?}");
         return;
     }
     if let Err(e) = database.remove_reminder(reminder).await {
-        println!("Unable to remove reminder: {:?}", e);
+        println!("Unable to remove reminder: {e:?}");
     }
 }
 
@@ -210,7 +210,7 @@ async fn sleeping_reminder(
     let duration = match delta.to_std() {
         Ok(v) => v,
         Err(e) => {
-            println!("Unable to calculate reminder instant: {}", e);
+            println!("Unable to calculate reminder instant: {e}");
             return;
         }
     };

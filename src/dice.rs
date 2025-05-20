@@ -14,6 +14,6 @@ pub(crate) async fn roll(
     let roll = expr.eval(&mut roller)?;
     let description = roll.to_string();
     let total = roll.calc()?;
-    ctx.say(format!("{} = {}", total, description)).await?;
+    ctx.say(format!("{total} = {description}")).await?;
     Ok(())
 }
