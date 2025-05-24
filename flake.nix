@@ -11,6 +11,7 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       flake-utils,
       naersk,
@@ -24,7 +25,7 @@
         naersk-lib = pkgs.callPackage naersk { };
       in
       {
-        packages.default = naersk-lib.buildPackage ./.;
+        packages.default = naersk-lib.buildPackage self;
         devShells.default =
           let
             pg_path = "/tmp/pg";
