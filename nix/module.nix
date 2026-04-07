@@ -1,35 +1,38 @@
-inputs:
 {
-  pkgs,
-  lib,
   config,
+  lib,
+  pkgs,
+  self,
   ...
 }:
 
 let
   cfg = config.services.athena;
-  athena-pkg = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   options.services.athena = {
     enable = lib.mkEnableOption "Athena";
     databaseUrl = lib.mkOption {
       type = lib.types.str;
-      default = "postgresql:///athena?host=/var/run/postgresql";
-      description = "See https://docs.rs/tokio-postgres/latest/tokio_postgres/config/struct.Config.html for details on the connection string format";
+      default = "postgresql:///athena?host=/run/postgresql";
+      description = ''
+        Postgres connection string.
+
+        See https://docs.rs/tokio-postgres/latest/tokio_postgres/config/struct.Config.html
+        for details on the format
+      '';
     };
     discordToken = lib.mkOption {
       type = lib.types.str;
       example = "XAASFA-FDAFAF";
-      description = "Discord bot token"; # TODO: Find a more secure alternative, probably using a key file
+      # TODO: Find a more secure alternative,
+      # probably using a key file  and systemd credentials
+      description = "Discord bot token";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [
-      athena-pkg
-    ];
-
     services.postgresql = {
       enable = true;
       ensureDatabases = [ "athena" ];
@@ -44,20 +47,21 @@ in
     systemd.services.athena = {
       description = "Athena Discord Bot";
 
-      after = [ "network-online.target" ];
-      requires = [ "postgresql.service" ];
+      after = [
+        "network-online.target"
+        "postgresql.target"
+      ];
+      requires = [ "postgresql.target" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
       startLimitIntervalSec = 60;
       startLimitBurst = 2;
 
-      restartTriggers = [ athena-pkg ];
-
       serviceConfig = {
         Type = "exec";
         Restart = "on-failure";
-        ExecStart = "${athena-pkg}/bin/athena";
+        ExecStart = "${pkg}/bin/athena";
         RestartSec = 5;
         TimeoutStopSec = 900;
 
@@ -83,7 +87,6 @@ in
         ProtectHostname = true;
         LockPersonality = true;
         RestrictRealtime = true;
-        UMask = "027";
       };
 
       environment = {

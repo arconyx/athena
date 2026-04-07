@@ -7,7 +7,7 @@
     {
       nixpkgs,
       ...
-    }@inputs:
+    }:
     let
       systems = [
         "x86_64-linux"
@@ -26,6 +26,6 @@
         default = (systemPkgs system).callPackage ./nix/package.nix { };
       });
 
-      nixosModules.default = import ./nix/module.nix inputs;
+      nixosModules.default = import ./nix/module.nix;
     };
 }
