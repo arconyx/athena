@@ -14,9 +14,9 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: cachix/install-nix-action@v31
-      - uses: nix-community/cache-nix-action@v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe
+      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569
         with:
           # Cache key has been ordered with the value likely to change most frequently at the end
           # So that we can fallback by matching on prefixes
