@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.39", default-features = false }
-iso8601-timestamp = "0.3.3"
+iso8601-timestamp = "0.4.0"
 poise = "0.6.1"
 reqwest = { version = "0.12.12", features = ["gzip", "json"] }
 serde = { version = "1.0.217", features = ["derive"] }
