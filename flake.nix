@@ -1,17 +1,11 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    naersk = {
-      url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
     {
-      self,
       nixpkgs,
-      naersk,
       ...
     }@inputs:
     let
@@ -29,11 +23,7 @@
       });
 
       packages = forAllSystems (system: {
-        default =
-          let
-            naersk-lib = (systemPkgs system).callPackage naersk { };
-          in
-          naersk-lib.buildPackage self;
+        default = (systemPkgs system).callPackage ./nix/package.nix { };
       });
 
       nixosModules.default = import ./nix/module.nix inputs;
