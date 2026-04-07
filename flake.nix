@@ -39,10 +39,7 @@
               cargo
               rustc
               rustfmt
-              pre-commit
-              rustPackages.clippy
-              pkg-config
-              openssl
+              clippy
               postgresql
               rust-analyzer
             ];
