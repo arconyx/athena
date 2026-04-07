@@ -44,6 +44,7 @@
               pkg-config
               openssl
               postgresql
+              rust-analyzer
             ];
             RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
             DATABASE_URL = "postgresql:///athena?user=postgres&host=${pg_path}/sockets";
