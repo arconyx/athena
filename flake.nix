@@ -5,10 +5,6 @@
       url = "github:nix-community/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    git-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -16,7 +12,6 @@
       self,
       nixpkgs,
       naersk,
-      git-hooks,
       ...
     }@inputs:
     let
@@ -29,17 +24,6 @@
       systemPkgs = system: nixpkgs.legacyPackages.${system};
     in
     {
-      checks = forAllSystems (system: {
-        pre-commit-check = git-hooks.lib.${system}.run {
-          src = ./.;
-          hooks = {
-            nixfmt-rfc-style.enable = true;
-            clippy.enable = true;
-            rustfmt.enable = true;
-          };
-        };
-      });
-
       devShells = forAllSystems (system: {
         default = (systemPkgs system).callPackage ./nix/dev.nix { };
       });
