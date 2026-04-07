@@ -82,7 +82,7 @@ struct QuakeList {
 /// Poll geonet for all quakes at or above the given API and return the
 /// most recent. If no such quake exists then return an error.
 async fn get_quake(mmi: i8) -> Result<Quake, Error> {
-    let url = format!("https://api.geonet.org.nz//quake?MMI={mmi}");
+    let url = format!("https://api.geonet.org.nz/quake?MMI={mmi}");
     let client = reqwest::Client::new();
 
     let mut quakes = client
