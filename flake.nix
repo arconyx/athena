@@ -29,26 +29,7 @@
       in
       {
         packages.default = naersk-lib.buildPackage self;
-        devShells.default =
-          let
-            pg_path = "/tmp/pg";
-          in
-          pkgs.mkShell {
-            buildInputs = with pkgs; [
-              bashInteractive
-              cargo
-              rustc
-              rustfmt
-              clippy
-              postgresql
-              rust-analyzer
-            ];
-            RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
-            DATABASE_URL = "postgresql:///athena?user=postgres&host=${pg_path}/sockets";
-            PGDATA = "${pg_path}/data";
-            PGHOST = "${pg_path}/sockets";
-            shellHook = "echo To start a dev database use './start-postgres.sh'";
-          };
+        devShells.default = pkgs.callPackage ./nix/dev.nix { };
         checks.pre-commit-check = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
