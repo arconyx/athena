@@ -5,8 +5,7 @@
       url = "github:nix-community/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flake-utils.url = "github:numtide/flake-utils";
-    pre-commit-hooks = {
+    git-hooks = {
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -16,21 +15,22 @@
     {
       self,
       nixpkgs,
-      flake-utils,
       naersk,
-      pre-commit-hooks,
+      git-hooks,
       ...
     }@inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        naersk-lib = pkgs.callPackage naersk { };
-      in
-      {
-        packages.default = naersk-lib.buildPackage self;
-        devShells.default = pkgs.callPackage ./nix/dev.nix { };
-        checks.pre-commit-check = pre-commit-hooks.lib.${system}.run {
+    let
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      # forAllSystems :: (String -> Any) -> AttrSet
+      forAllSystems = nixpkgs.lib.genAttrs systems;
+      systemPkgs = system: nixpkgs.legacyPackages.${system};
+    in
+    {
+      checks = forAllSystems (system: {
+        pre-commit-check = git-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
             nixfmt-rfc-style.enable = true;
@@ -38,9 +38,20 @@
             rustfmt.enable = true;
           };
         };
-      }
-    )
-    // {
+      });
+
+      devShells = forAllSystems (system: {
+        default = (systemPkgs system).callPackage ./nix/dev.nix { };
+      });
+
+      packages = forAllSystems (system: {
+        default =
+          let
+            naersk-lib = (systemPkgs system).callPackage naersk { };
+          in
+          naersk-lib.buildPackage self;
+      });
+
       nixosModules.default = import ./nix/module.nix inputs;
     };
 }
