@@ -55,7 +55,7 @@ impl Quake {
             .field("MMI", properties.mmi.to_string(), true)
             .field("Depth", format!("{:.3} km", properties.depth), true)
             .field("Time", format!("<t:{timestamp}:R>"), true)
-            .field("Quality", properties.quality.to_string(), true)
+            .field("Quality", properties.quality.clone(), true)
             .field("Location", &properties.locality, true)
             // Colour code the embed to match the severity
             .color(match mmi {
