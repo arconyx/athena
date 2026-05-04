@@ -2,13 +2,12 @@
   config,
   lib,
   pkgs,
-  self,
   ...
 }:
 
 let
   cfg = config.services.athena;
-  pkg = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  pkg = pkgs.callPackage ./package.nix { };
 in
 {
   options.services.athena = {
