@@ -291,10 +291,15 @@ pub(crate) async fn remindin(
     duration: i64,
     #[description = "Time units"] unit: TimeUnitChoice,
     #[description = "Reminder message"] message: String,
+    #[description = "Publicly display the response"] ephemeral: Option<bool>,
 ) -> Result<(), Error> {
     // yes discord, we're working on it
     // don't time us out yet
-    ctx.defer().await?;
+    if ephemeral.unwrap_or(false) {
+        ctx.defer().await?;
+    } else {
+        ctx.defer_ephemeral().await?;
+    }
 
     // write the reminder to the database
     let database = ctx.data().database.clone();
