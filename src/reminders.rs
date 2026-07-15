@@ -22,8 +22,7 @@ impl Reminder {
 
         // User ids are u64 but postgres doesn't support that so we store them as i64
         // We undo this here before it gets to the user
-        #[allow(clippy::cast_sign_loss)]
-        let user_id = UserId::from(user_id_int as u64);
+        let user_id = UserId::from(user_id_int.cast_unsigned());
 
         let due_at: DateTime<Utc> = x.get(2);
         let message: String = x.get(3);
@@ -110,8 +109,7 @@ impl ReminderDatabase {
         message: String,
     ) -> Result<Reminder, Error> {
         // Postgres doesn't have an unsigned int 64 so we cast it to an i64
-        #[allow(clippy::cast_possible_wrap)]
-        let author_id = user_id.get() as i64;
+        let author_id = user_id.get().cast_signed();
 
         let id: i64 = self
             .client
