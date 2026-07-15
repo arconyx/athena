@@ -291,11 +291,11 @@ pub(crate) async fn remindin(
     duration: i64,
     #[description = "Time units"] unit: TimeUnitChoice,
     #[description = "Reminder message"] message: String,
-    #[description = "Publicly display the response"] ephemeral: Option<bool>,
+    #[description = "Publicly display the response"] public: Option<bool>,
 ) -> Result<(), Error> {
     // yes discord, we're working on it
     // don't time us out yet
-    if ephemeral.unwrap_or(false) {
+    if public.unwrap_or(false) {
         ctx.defer().await?;
     } else {
         ctx.defer_ephemeral().await?;
