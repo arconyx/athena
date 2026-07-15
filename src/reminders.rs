@@ -215,7 +215,7 @@ async fn send_reminder(bot: Arc<serenity::Http>, reminder: &Reminder) -> Result<
 /// If not, log an error and leave the reminder in the database
 /// so it can be retired later.
 async fn send_and_remove_reminder(
-    database: Arc<ReminderDatabase>,
+    database: &ReminderDatabase,
     bot: Arc<serenity::Http>,
     reminder: Reminder,
 ) {
@@ -237,7 +237,7 @@ async fn sleeping_reminder(
     let delta = reminder.due_at - Utc::now();
 
     if delta <= TimeDelta::zero() {
-        send_and_remove_reminder(database, bot, reminder).await;
+        send_and_remove_reminder(database.as_ref(), bot, reminder).await;
         return;
     }
 
@@ -250,7 +250,7 @@ async fn sleeping_reminder(
     };
 
     tokio::time::sleep(duration).await;
-    send_and_remove_reminder(database, bot, reminder).await;
+    send_and_remove_reminder(database.as_ref(), bot, reminder).await;
 }
 
 /// For every active reminder spawn a task that will sleep until it is
