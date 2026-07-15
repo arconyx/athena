@@ -41,12 +41,14 @@ impl Reminder {
 pub(crate) struct ReminderDatabase {
     /// The database client used to interact with postgres
     client: Client,
-    /// A prepared database statement that adds a reminder to the database
+    /// Adds a reminder to the database
     add: Statement,
-    /// A prepared database statement that removes a reminder from the database
+    /// Removes a reminder from the database
     remove: Statement,
-    /// A prepared database statement that fetches all reminders from the database
+    /// Fetches all reminders from the database
     select: Statement,
+    /// Fetch all reminders for a user
+    select_user: Statement,
 }
 
 impl ReminderDatabase {
@@ -81,13 +83,17 @@ impl ReminderDatabase {
         // > as they provided the functionality to safely embed that data in the request.
         // > Do not form statements via string concatenation and pass them to [other] methods!
         // I believe prepared statements may also have performance benefits?
-        let (add, remove, select) = future::try_join3(
+        let (add, remove, select, select_user) = future::try_join4(
             client.prepare_typed(
                 "INSERT INTO reminders (user_id, due_at, message) values ($1, $2, $3) RETURNING id",
                 &[Type::INT8, Type::TIMESTAMPTZ, Type::TEXT],
             ),
             client.prepare_typed("DELETE FROM reminders WHERE id = $1", &[Type::INT8]),
             client.prepare("SELECT id, user_id, due_at, message FROM reminders"),
+            client.prepare_typed(
+                "SELECT id, user_id, due_at, message FROM reminders where user_id = $1 ORDER BY due_at",
+                &[Type::INT8],
+            ),
         )
         .await?;
 
@@ -97,6 +103,7 @@ impl ReminderDatabase {
             add,
             remove,
             select,
+            select_user,
         };
         Ok(db_helper)
     }
@@ -136,6 +143,16 @@ impl ReminderDatabase {
     /// However this is not guaranteed.
     async fn get_reminders(&self) -> Result<Vec<Row>, Error> {
         let rows = self.client.query(&self.select, &[]).await?;
+        Ok(rows)
+    }
+
+    /// Get all reminders for users
+    /// As with `get_reminders` this should only include future reminders
+    async fn get_reminders_for_user(&self, user_id: UserId) -> Result<Vec<Row>, Error> {
+        let rows = self
+            .client
+            .query(&self.select_user, &[&user_id.get().cast_signed()])
+            .await?;
         Ok(rows)
     }
 }
@@ -271,7 +288,7 @@ pub(crate) async fn spawn_reminder_tasks(
 }
 
 /// Create a reminder about something
-#[poise::command(slash_command, subcommands("remindin"))]
+#[poise::command(slash_command, subcommands("remindin", "list_reminders"))]
 pub(crate) async fn remindme(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("Please use a subcommand").await?;
     Ok(())
@@ -316,5 +333,25 @@ pub(crate) async fn remindin(
     // tell the user that everything is hunky-dory
     ctx.say(format!("Reminder created for <t:{}>", end_time.timestamp()))
         .await?;
+    Ok(())
+}
+
+/// remindme list...
+#[poise::command(slash_command, rename = "list")]
+pub(crate) async fn list_reminders(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer_ephemeral().await?;
+
+    let database = ctx.data().database.as_ref();
+    let reminders = database.get_reminders_for_user(ctx.author().id).await?;
+    let reminder_strings: Vec<String> = reminders
+        .iter()
+        .map(|row| {
+            let reminder = Reminder::from_row(row);
+            format!("<t:{}>   {}", reminder.due_at.timestamp(), reminder.message)
+        })
+        .collect();
+    let joined_reminders = reminder_strings.join("\n");
+    let msg = format!("## Reminders\n\n{joined_reminders}");
+    ctx.say(msg).await?;
     Ok(())
 }
